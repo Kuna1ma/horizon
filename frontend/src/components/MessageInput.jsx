@@ -9,9 +9,8 @@ const MessageInput = () => {
   const [imagePreview, setImagePreview] = useState(null);
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null); // ✅ for typing debounce
-
+  const { socket, authUser } = useAuthStore();
   const { sendMessage, selectedUser } = useChatStore();
-  const { socket } = useAuthStore();
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -28,16 +27,21 @@ const MessageInput = () => {
   };
 
   const handleTyping = (e) => {
-    setText(e.target.value);
+    const value = e.target.value;
+    setText(value);
 
-    if (socket && selectedUser) {
-      socket.emit("typing", { to: selectedUser._id });
+    // Emit typing event
+    socket.emit("typing", {
+      to: selectedUser._id,
+      from: authUser._id,
+      fullName: authUser.fullName,
+    });
 
-      clearTimeout(typingTimeoutRef.current);
-      typingTimeoutRef.current = setTimeout(() => {
-        socket.emit("stopTyping", { to: selectedUser._id });
-      }, 2000); // Stop typing after 2 seconds idle
-    }
+    // Debounce clear
+    clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      socket.emit("stopTyping", { to: selectedUser._id });
+    }, 2000);
   };
 
   const removeImage = () => {

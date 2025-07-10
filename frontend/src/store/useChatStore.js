@@ -9,6 +9,9 @@ export const useChatStore = create((set, get) => ({
   selectedUser: null,
   isUsersLoading: false,
   isMessagesLoading: false,
+  typingUser: null,
+  isTyping: false, 
+  typingTimeout: null, 
 
   getUsers: async () => {
     set({ isUsersLoading: true });
@@ -64,23 +67,28 @@ export const useChatStore = create((set, get) => ({
   },
 
   subscribeToMessages: () => {
-    const { selectedUser } = get();
-    if (!selectedUser) return;
-
     const socket = useAuthStore.getState().socket;
+    const messageAudio = new Audio("/audio/receive.mp3");
 
+    // ✅ Handle new messages
     socket.on("newMessage", (newMessage) => {
-      const isFromSelectedUser = newMessage.senderId === selectedUser._id;
+      const currentSelected = get().selectedUser;
+      const isFromSelectedUser = newMessage.senderId === currentSelected?._id;
 
-      // Always update messages if it’s from the currently open chat
+      messageAudio.play().catch((err) => {
+        console.warn("Auto-play failed:", err);
+      });
+
       if (isFromSelectedUser) {
         set({ messages: [...get().messages, newMessage] });
       }
 
-      // ✅ Update the sender's lastMessageTimestamp
       set((state) => {
         const updatedUsers = state.users.map((user) => {
-          if (user._id === newMessage.senderId || user._id === newMessage.receiverId) {
+          if (
+            user._id === newMessage.senderId ||
+            user._id === newMessage.receiverId
+          ) {
             return {
               ...user,
               lastMessageTimestamp: newMessage.createdAt,
@@ -92,12 +100,44 @@ export const useChatStore = create((set, get) => ({
         return { users: updatedUsers };
       });
     });
+
+    // ✅ Handle typing — use real-time selectedUser
+    socket.on("typing", ({ from }) => {
+      const currentSelected = get().selectedUser;
+      if (currentSelected?._id === from) {
+        set({ isTyping: true });
+
+        const prevTimeout = get().typingTimeout;
+        if (prevTimeout) clearTimeout(prevTimeout);
+
+        const timeout = setTimeout(() => {
+          set({ isTyping: false, typingTimeout: null });
+        }, 2000);
+
+        set({ typingTimeout: timeout });
+      }
+    });
+
+    // ✅ Handle stopTyping — same fix
+    socket.on("stopTyping", ({ from }) => {
+      const currentSelected = get().selectedUser;
+      if (currentSelected?._id === from) {
+        set({ isTyping: false });
+      }
+    });
   },
+
+
 
   unsubscribeFromMessages: () => {
     const socket = useAuthStore.getState().socket;
     socket.off("newMessage");
   },
 
-  setSelectedUser: (selectedUser) => set({ selectedUser }),
+  setSelectedUser: (selectedUser) =>
+  set({
+    selectedUser,
+    isTyping: false, // ✅ Reset typing state when changing conversation
+    typingUser: null,
+  }),
 }));
