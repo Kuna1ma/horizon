@@ -5,15 +5,36 @@ import { getReceiverSocketId, io } from "../lib/socket.js";
 
 
 export const getUsersForSideBar = async (req, res) => {
-    try {
-        const loggedInUserId = req.user._id;
-        const filteredUsers = await User.find({_id: {$ne:loggedInUserId}}).select("-password");
+  try {
+    const currentUserId = req.user._id;
 
-        res.status(200).json(filteredUsers);
-    } catch (error) {
-        console.error("Error in getUsersForSideBar: ", error.message);
-        res.status(500).json({ error: "Internal Server Error" });
-    }
+    // Get all users except the current one
+    const users = await User.find({ _id: { $ne: currentUserId } });
+
+    // Attach last message timestamp to each user
+    const usersWithTimestamps = await Promise.all(
+      users.map(async (user) => {
+        const lastMessage = await Message.findOne({
+          $or: [
+            { senderId: currentUserId, receiverId: user._id },
+            { senderId: user._id, receiverId: currentUserId },
+          ],
+        }).sort({ createdAt: -1 });
+
+        return {
+          _id: user._id,
+          fullName: user.fullName,
+          profilePic: user.profilePic,
+          lastMessageTimestamp: lastMessage?.createdAt || null,
+        };
+      })
+    );
+
+    res.json(usersWithTimestamps);
+  } catch (err) {
+    console.error("Error in getUsersForSideBar:", err);
+    res.status(500).json({ message: "Failed to fetch users." });
+  }
 };
 
 export const getMessages = async (req, res) => {

@@ -19,7 +19,9 @@ const Sidebar = () => {
     : users;
 
   const sortedUsers = filteredUsers.slice().sort((a, b) => {
-    return new Date(b.lastMessageTimestamp) - new Date(a.lastMessageTimestamp);
+    const dateA = a.lastMessageTimestamp ? new Date(a.lastMessageTimestamp) : 0;
+    const dateB = b.lastMessageTimestamp ? new Date(b.lastMessageTimestamp) : 0;
+    return dateB - dateA; // Most recent first
   });
 
   if (isUsersLoading) return <SidebarSkeleton />;
