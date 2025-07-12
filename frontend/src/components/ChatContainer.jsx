@@ -13,42 +13,61 @@ const ChatContainer = () => {
   const {
     messages,
     getMessages,
+    getUsers,
     isMessagesLoading,
     selectedUser,
     subscribeToMessages,
     unsubscribeFromMessages,
+    isTyping,
     
   } = useChatStore();
 
 
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
-  const { isTyping } = useChatStore();
 
+  useEffect(() => {
+    getUsers();
+  }, [getUsers]);
 
+    // ✅ Fetch messages & subscribe on user change
   useEffect(() => {
     if (!selectedUser?._id) return;
 
-    getMessages(selectedUser._id);
-    subscribeToMessages();
+    // ✅ Unsubscribe first to prevent duplicate socket listeners
+    unsubscribeFromMessages();
 
-    return () => unsubscribeFromMessages();
-  }, [selectedUser?._id, getMessages, subscribeToMessages, unsubscribeFromMessages]);
-
-
-  useEffect(() => {
+    // ✅ Fetch messages
     getMessages(selectedUser._id);
 
+    // ✅ Subscribe to real-time updates
     subscribeToMessages();
 
+    // ✅ Clean up when component unmounts or selectedUser changes
     return () => unsubscribeFromMessages();
-  }, [selectedUser._id, getMessages, subscribeToMessages, unsubscribeFromMessages]);
+  }, [selectedUser?._id]); // ⛔️ Do not include functions in dependencies
 
+
+  // ✅ Scroll to bottom on new messages or typing
   useEffect(() => {
-    if (messageEndRef.current && messages) {
-      messageEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
+    const scrollToBottom = () => {
+      const container = messageEndRef.current?.parentElement;
+      if (container) {
+        container.scrollTop = container.scrollHeight;
+      }
+    };
+
+    // Wait for layout to finish rendering
+    const timeout = setTimeout(() => {
+      if (messages.length > 0) {
+        scrollToBottom();
+      }
+    }, 0);
+
+    return () => clearTimeout(timeout);
   }, [messages, isTyping]);
+
+
 
   if (isMessagesLoading) {
     return (

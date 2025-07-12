@@ -24,6 +24,11 @@ const messageSchema = new mongoose.Schema (
             image: String,
             senderId: String,
         },
+        forwardedFrom: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            default: null,
+        },
     },
 
 

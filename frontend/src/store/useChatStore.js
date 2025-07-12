@@ -16,8 +16,9 @@ export const useChatStore = create((set, get) => ({
   setReplyToMessage: (message) => set({ replyToMessage: message }),
   clearReplyToMessage: () => set({ replyToMessage:null }),
   setMessages: (newMessages) => set({ messages: newMessages }),
-
-
+  fowardMessage: null, 
+  setForwardMessage: (message) => set({ forwardMessage: message }),
+  clearForwardMessage: () => set({ forwardMessage: null }),
 
   removeMessage: (messageId) => {
     set((state) => ({
@@ -79,30 +80,52 @@ export const useChatStore = create((set, get) => ({
 
   subscribeToMessages: () => {
     const socket = useAuthStore.getState().socket;
-    const messageAudio = new Audio("/audio/receive.mp3");
+    const myId = useAuthStore.getState().authUser?._id;
+
+    if (!socket || !myId) {
+      console.warn("🚫 Socket or auth user not available — skipping subscription");
+      return;
+    }
+
+    console.log("✅ Subscribing to socket events with user ID:", myId);
+
+    const normalizeId = (id) => (id?._id?.toString?.() || id?.toString?.());
+
+    const playSound = () => {
+      const messageAudio = new Audio("/audio/receive.mp3");
+      messageAudio.play().catch((err) => {
+        console.warn("🔇 Auto-play failed:", err);
+      });
+    };
 
     socket.on("messageDeleted", ({ messageId }) => {
-      const updatedMessages = get().messages.filter((m) => m._id !== messageId);
-      set({ messages: updatedMessages });
+      set((state) => ({
+        messages: state.messages.filter((m) => m._id !== messageId),
+      }));
     });
 
     socket.on("newMessage", (newMessage) => {
       const currentSelected = get().selectedUser;
-      const isFromSelectedUser = newMessage.senderId === currentSelected?._id;
 
-      messageAudio.play().catch((err) => {
-        console.warn("Auto-play failed:", err);
-      });
+      console.log("📦 NEW MESSAGE RECEIVED:", newMessage);
 
-      if (isFromSelectedUser) {
-        set({ messages: [...get().messages, newMessage] });
+      const isRelevant =
+        normalizeId(newMessage.senderId) === normalizeId(currentSelected?._id) &&
+        normalizeId(newMessage.receiverId) === normalizeId(myId);
+
+      if (isRelevant) {
+        set((state) => ({
+          messages: [...state.messages, newMessage],
+        }));
       }
+
+      playSound();
 
       set((state) => {
         const updatedUsers = state.users.map((user) => {
           if (
-            user._id === newMessage.senderId ||
-            user._id === newMessage.receiverId
+            normalizeId(user._id) === normalizeId(newMessage.senderId) ||
+            normalizeId(user._id) === normalizeId(newMessage.receiverId)
           ) {
             return {
               ...user,
@@ -116,38 +139,38 @@ export const useChatStore = create((set, get) => ({
       });
     });
 
-    // ✅ Handle typing — use real-time selectedUser
     socket.on("typing", ({ from }) => {
       const currentSelected = get().selectedUser;
-      if (currentSelected?._id === from) {
+
+      if (normalizeId(currentSelected?._id) === normalizeId(from)) {
         set({ isTyping: true });
-
-        const prevTimeout = get().typingTimeout;
-        if (prevTimeout) clearTimeout(prevTimeout);
-
-        const timeout = setTimeout(() => {
-          set({ isTyping: false, typingTimeout: null });
-        }, 2000);
-
-        set({ typingTimeout: timeout });
       }
     });
 
-    // ✅ Handle stopTyping — same fix
     socket.on("stopTyping", ({ from }) => {
       const currentSelected = get().selectedUser;
-      if (currentSelected?._id === from) {
+
+      if (normalizeId(currentSelected?._id) === normalizeId(from)) {
         set({ isTyping: false });
       }
+    });
+
+    // Optional: log all socket events for debugging
+    socket.onAny((event, ...args) => {
+      console.log(`📡 SOCKET EVENT: ${event}`, args);
     });
   },
 
 
 
+
+
   unsubscribeFromMessages: () => {
     const socket = useAuthStore.getState().socket;
-    socket.off("newMessage");
-    socket.off("messageDeleted");
+      socket.off("newMessage");
+      socket.off("messageDeleted");
+      socket.off("typing");
+      socket.off("stopTyping");
   },
 
   setSelectedUser: (selectedUser) =>
