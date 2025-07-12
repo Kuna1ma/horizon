@@ -61,9 +61,11 @@ const ChatContainer = () => {
 
   return (
     <div className="flex-1 flex flex-col overflow-auto">
+      
       <ChatHeader />
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          
           {messages.map((message) => (
             <ChatBubble
               key={message._id}
@@ -80,6 +82,7 @@ const ChatContainer = () => {
           {/* ✅ Typing bubble here */}
           {isTyping && (
             <div className="chat chat-start">
+              
               <div className="chat-image avatar">
                 <div className="size-10 rounded-full border">
                   <img src={selectedUser.profilePic || "/avatar.png"} alt="profile pic" />

@@ -12,6 +12,9 @@ export const useChatStore = create((set, get) => ({
   typingUser: null,
   isTyping: false, 
   typingTimeout: null, 
+  replyToMessage: null,
+  setReplyToMessage: (message) => set({ replyToMessage: message }),
+  clearReplyToMessage: () => set({ replyToMessage:null }),
 
   getUsers: async () => {
     set({ isUsersLoading: true });
@@ -70,7 +73,7 @@ export const useChatStore = create((set, get) => ({
     const socket = useAuthStore.getState().socket;
     const messageAudio = new Audio("/audio/receive.mp3");
 
-    // ✅ Handle new messages
+
     socket.on("newMessage", (newMessage) => {
       const currentSelected = get().selectedUser;
       const isFromSelectedUser = newMessage.senderId === currentSelected?._id;

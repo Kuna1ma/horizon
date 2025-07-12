@@ -57,34 +57,29 @@ export const getMessages = async (req, res) => {
 
 export const sendMessage = async (req, res) => {
   try {
-    const { text, image } = req.body;
-    const { id: receiverId } = req.params;
+    const { text, image, replyTo } = req.body;
+    const receiverId = req.params.id;
     const senderId = req.user._id;
 
-    let imageUrl;
-    if (image) {
-      // Upload base64 image to cloudinary
-      const uploadResponse = await cloudinary.uploader.upload(image);
-      imageUrl = uploadResponse.secure_url;
-    }
-
-    const newMessage = new Message({
+    const newMessage = await Message.create({
       senderId,
       receiverId,
       text,
-      image: imageUrl,
+      image,
+      replyTo: replyTo || null,
     });
 
-    await newMessage.save();
+    const populatedMessage = await Message.findById(newMessage._id)
+      .populate({
+        path: "replyTo",
+        select: "text image senderId", 
+      });
 
-    const receiverSocketId = getReceiverSocketId(receiverId);
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("newMessage", newMessage);
-    }
-
-    res.status(201).json(newMessage);
+ 
+    res.status(201).json(populatedMessage);
   } catch (error) {
-    console.log("Error in sendMessage controller: ", error.message);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("Send message error:", error);
+    res.status(500).json({ error: "Failed to send message" });
   }
 };
+

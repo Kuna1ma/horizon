@@ -3,14 +3,14 @@ import { useChatStore } from "../store/useChatStore";
 import { Image, Send, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuthStore } from "../store/useAuthStore";
-
 const MessageInput = () => {
-  const [text, setText] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null); // ✅ for typing debounce
   const { socket, authUser } = useAuthStore();
   const { sendMessage, selectedUser } = useChatStore();
+  const { replyToMessage, clearReplyToMessage } = useChatStore();
+  const [text, setText] = useState("");
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -57,11 +57,20 @@ const MessageInput = () => {
       await sendMessage({
         text: text.trim(),
         image: imagePreview,
+        ...(replyToMessage && {
+          replyTo: {
+            _id: replyToMessage._id,
+            text: replyToMessage.text || "",
+            image: replyToMessage.image || "",
+            senderId: replyToMessage.senderId,
+          },
+        }),
       });
 
       setText("");
       removeImage();
-
+      clearReplyToMessage();
+      
       // Immediately stop typing after sending
       if (socket && selectedUser) {
         socket.emit("stopTyping", { to: selectedUser._id });
@@ -92,7 +101,23 @@ const MessageInput = () => {
           </div>
         </div>
       )}
-
+      {replyToMessage && (
+        <div className="mb-3 px-3 py-2 bg-base-300 rounded-lg text-sm text-base-content relative">
+          <div className="flex flex-col gap-1">
+            <span className="font-semibold text-base-content/80">Replying to:</span>
+            <div className="italic text-base-content/70 break-words max-w-xs">
+              {replyToMessage.text || "📎 Image"}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={clearReplyToMessage}
+            className="absolute top-1.5 right-1.5 text-base-content/60 hover:text-error"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
       <form onSubmit={handleSendMessage} className="flex items-center gap-2">
         <div className="flex-1 flex gap-2">
           <input

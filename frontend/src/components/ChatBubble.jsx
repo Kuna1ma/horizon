@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { formatMessageTime } from "../lib/utils";
+import { useChatStore } from "../store/useChatStore";
 
 const ChatBubble = ({ message, isOwn, profilePic, name }) => {
   const [showDropdown, setShowDropdown] = useState(false);
@@ -32,17 +33,39 @@ const ChatBubble = ({ message, isOwn, profilePic, name }) => {
             {formatMessageTime(message.createdAt)}
           </span>
         </div>
-
         <div className="py-2.5 text-sm font-normal text-base-content break-words">
+          {/* ✅ Show reply content if exists */}
+          {message.replyTo && (
+            <div className="mb-2 px-3 py-2 rounded bg-base-300 text-sm text-base-content/70 border-l-4 border-primary">
+              <span className="block font-medium mb-1">Replying to:</span>
+              {message.replyTo.text && (
+                <p className="italic text-base-content/70 break-words">
+                  {message.replyTo.text}
+                </p>
+              )}
+              {message.replyTo.image && (
+                <img
+                  src={message.replyTo.image}
+                  alt="Replied image"
+                  className="mt-1 w-24 h-24 object-cover rounded border"
+                />
+              )}
+            </div>
+          )}
+          
+          {/* ✅ Render this message's image (main image) */}
           {message.image && (
             <img
               src={message.image}
-              alt="Attachment"
-              className="rounded-md max-w-full mb-2"
+              alt="Message attachment"
+              className="mb-2 w-60 max-h-60 object-cover rounded"
             />
           )}
+
+          {/* ✅ Show message text */}
           {message.text}
         </div>
+
 
         <span className="text-sm font-normal text-base-content/60">Delivered</span>
       </div>
@@ -67,6 +90,11 @@ const ChatBubble = ({ message, isOwn, profilePic, name }) => {
                   <button
                     onClick={() => {
                       setShowDropdown(false);
+
+                      if (action === "Reply") {
+                        useChatStore.getState().setReplyToMessage(message);
+                      }
+
                       console.log(`${action} clicked`);
                     }}
                     className="w-full text-left px-4 py-2 hover:bg-base-300 rounded"
