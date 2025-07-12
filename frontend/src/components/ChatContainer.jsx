@@ -8,6 +8,7 @@ import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
 import ChatBubble from "./ChatBubble";
 
+
 const ChatContainer = () => {
   const {
     messages,
@@ -23,6 +24,16 @@ const ChatContainer = () => {
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
   const { isTyping } = useChatStore();
+
+
+  useEffect(() => {
+    if (!selectedUser?._id) return;
+
+    getMessages(selectedUser._id);
+    subscribeToMessages();
+
+    return () => unsubscribeFromMessages();
+  }, [selectedUser?._id, getMessages, subscribeToMessages, unsubscribeFromMessages]);
 
 
   useEffect(() => {
@@ -44,19 +55,24 @@ const ChatContainer = () => {
       <div className="flex-1 flex flex-col overflow-auto">
         <ChatHeader />
         <MessageSkeleton />
-          {isTyping && (
-            <div className="px-6 pb-2 text-sm text-zinc-400 flex items-center gap-2">
-              <span>{selectedUser?.fullName || "User"} is typing</span>
-              <span className="dots flex gap-[2px]">
-                <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: "0s" }} />
-                <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
-                <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: "0.4s" }} />
-              </span>
-            </div>
-          )}
+        {isTyping && (
+          <div className="px-6 pb-2 text-sm text-zinc-400 flex items-center gap-2">
+            <span>{selectedUser?.fullName || "User"} is typing</span>
+            <span className="dots flex gap-[2px]">
+              <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: "0s" }} />
+              <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
+              <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: "0.4s" }} />
+            </span>
+          </div>
+        )}
         <MessageInput />
       </div>
     );
+  }
+
+  // 🟡 Add this check right after loading, before rendering the chat
+  if (!selectedUser) {
+    return <div className="p-4 text-zinc-400">Select a user to start chatting</div>;
   }
 
   return (

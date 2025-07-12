@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { formatMessageTime } from "../lib/utils";
 import { useChatStore } from "../store/useChatStore";
+import axios from "axios";
+import toast from "react-hot-toast";
+import { useAuthStore } from "../store/useAuthStore";
 
 const ChatBubble = ({ message, isOwn, profilePic, name }) => {
   const [showDropdown, setShowDropdown] = useState(false);
@@ -88,14 +91,26 @@ const ChatBubble = ({ message, isOwn, profilePic, name }) => {
               {["Reply", "Forward", "Copy", "Report", "Delete"].map((action) => (
                 <li key={action}>
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       setShowDropdown(false);
 
                       if (action === "Reply") {
                         useChatStore.getState().setReplyToMessage(message);
+                      } else if (action === "Delete") {
+                        try {
+                          const token = useAuthStore.getState().authUser.token;
+                          await axios.delete(`/api/messages/${message._id}`, {
+                            headers: {
+                              Authorization: `Bearer ${token}`,
+                            },
+                          });
+                          useChatStore.getState().removeMessage(message._id);
+                          toast.success("Message deleted successfully");
+                        } catch (err) {
+                          console.error("Failed to delete:", err.response?.data || err.message);
+                          toast.error("Failed to delete message");
+                        }
                       }
-
-                      console.log(`${action} clicked`);
                     }}
                     className="w-full text-left px-4 py-2 hover:bg-base-300 rounded"
                   >

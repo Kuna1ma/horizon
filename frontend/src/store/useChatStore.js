@@ -15,7 +15,15 @@ export const useChatStore = create((set, get) => ({
   replyToMessage: null,
   setReplyToMessage: (message) => set({ replyToMessage: message }),
   clearReplyToMessage: () => set({ replyToMessage:null }),
+  setMessages: (newMessages) => set({ messages: newMessages }),
 
+
+
+  removeMessage: (messageId) => {
+    set((state) => ({
+      messages: state.messages.filter((m) => m._id !== messageId),
+    }));
+  },
   getUsers: async () => {
     set({ isUsersLoading: true });
     try {
@@ -73,6 +81,10 @@ export const useChatStore = create((set, get) => ({
     const socket = useAuthStore.getState().socket;
     const messageAudio = new Audio("/audio/receive.mp3");
 
+    socket.on("messageDeleted", ({ messageId }) => {
+      const updatedMessages = get().messages.filter((m) => m._id !== messageId);
+      set({ messages: updatedMessages });
+    });
 
     socket.on("newMessage", (newMessage) => {
       const currentSelected = get().selectedUser;
@@ -135,6 +147,7 @@ export const useChatStore = create((set, get) => ({
   unsubscribeFromMessages: () => {
     const socket = useAuthStore.getState().socket;
     socket.off("newMessage");
+    socket.off("messageDeleted");
   },
 
   setSelectedUser: (selectedUser) =>

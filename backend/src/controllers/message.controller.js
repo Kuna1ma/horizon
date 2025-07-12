@@ -2,6 +2,11 @@ import User from "../models/users.model.js";
 import Message from "../models/message.model.js";
 import cloudinary from "../lib/cloudinar.js";
 import { getReceiverSocketId, io } from "../lib/socket.js";
+import mongoose from "mongoose";
+
+
+
+
 
 
 export const getUsersForSideBar = async (req, res) => {
@@ -83,3 +88,35 @@ export const sendMessage = async (req, res) => {
   }
 };
 
+
+export const deleteMessage = async (req, res) => {
+  try {
+    const messageId = req.params.id;
+    const userId = req.user._id;
+
+    console.log("Attempting to delete message with ID:", messageId); // ✅ Log raw ID
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ error: "Message not found" });
+    }
+
+    if (message.senderId.toString() !== userId.toString()) {
+      return res.status(403).json({ error: "You can only delete your own messages" });
+    }
+
+    await message.deleteOne();
+
+    const receiverSocketId = getReceiverSocketId(message.receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("messageDeleted", { messageId });
+    }
+
+    io.to(userId.toString()).emit("messageDeleted", { messageId });
+    
+    res.status(200).json({ message: "Message deleted successfully", messageId });
+  } catch (error) {
+    console.error("Delete message error:", error);
+    res.status(500).json({ error: "Failed to delete message" });
+  }
+};
