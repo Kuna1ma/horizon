@@ -4,13 +4,16 @@ import { useChatStore } from "../store/useChatStore";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { useAuthStore } from "../store/useAuthStore";
+import { motion } from "framer-motion"; 
 
 const ChatBubble = ({ message, isOwn, profilePic, name }) => {
+  const [forwardingUserId, setForwardingUserId] = useState(null); 
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
   const [showForwardModal, setShowForwardModal] = useState(false);
   const [messageToForward, setMessageToForward] = useState(null);
   const userList = useChatStore((state) => state.users);
+  
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -135,61 +138,120 @@ const ChatBubble = ({ message, isOwn, profilePic, name }) => {
       </div>
 
             {/* Modal INSIDE the return block */}
-      {showForwardModal && messageToForward && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50">
-          <div className="bg-base-100 w-full max-w-md rounded-lg p-4 shadow-lg relative">
-            <h2 className="text-lg font-semibold mb-4">Forward Message To</h2>
-            <button
-              onClick={() => setShowForwardModal(false)}
-              className="absolute top-2 right-2 text-base-content/70 hover:text-base-content"
-            >
-              ✕
-            </button>
+{showForwardModal && messageToForward && (
+  <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      transition={{ duration: 0.25 }}
+      className="bg-white dark:bg-base-100 w-full max-w-md rounded-2xl p-6 shadow-xl relative"
+    >
+      {/* Close Button */}
+      <button
+        onClick={() => setShowForwardModal(false)}
+        className="absolute top-3 right-3 text-gray-500 hover:text-gray-800 dark:text-base-content/60 dark:hover:text-base-content"
+        aria-label="Close"
+      >
+        ✕
+      </button>
 
-            <ul className="space-y-2 max-h-60 overflow-y-auto">
-              {Array.isArray(userList) && userList.map((user) => (
-                <li key={user._id}>
-                  <button
-                    onClick={async () => {
-                      if (!messageToForward?._id) return;
-                      try {
-                        const token = useAuthStore.getState().authUser.token;
-                        await axios.post(
-                          `/api/messages/forward`,
-                          {
-                            recipientId: user._id,
-                            originalMessageId: messageToForward._id,
+      {/* Title */}
+      <h2 className="text-xl font-bold text-gray-800 dark:text-base-content">
+        Forward Message To
+      </h2>
+      <hr className="my-4 border-base-300" />
+
+      {/* User List or Empty State */}
+      {Array.isArray(userList) && userList.length > 0 ? (
+        <ul className="space-y-3 max-h-72 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-base-300">
+          {userList.map((user) => {
+            const isLoading = forwardingUserId === user._id;
+
+            return (
+              <li key={user._id}>
+                <button
+                  disabled={isLoading}
+                  onClick={async () => {
+                    if (!messageToForward?._id) return;
+                    setForwardingUserId(user._id);
+                    try {
+                      const token = useAuthStore.getState().authUser.token;
+                      await axios.post(
+                        `/api/messages/forward`,
+                        {
+                          recipientId: user._id,
+                          originalMessageId: messageToForward._id,
+                        },
+                        {
+                          headers: {
+                            Authorization: `Bearer ${token}`,
                           },
-                          {
-                            headers: {
-                              Authorization: `Bearer ${token}`,
-                            },
-                          }
-                        );
-                        toast.success(`Message forwarded to ${user.fullName || user.name}`);
-                      } catch (error) {
-                        console.error("Forward failed:", error);
-                        toast.error("Failed to forward message.");
-                      }
+                        }
+                      );
+                      toast.success(`📤 Message forwarded to ${user.fullName || user.name}`);
+                    } catch (error) {
+                      console.error("Forward failed:", error);
+                      toast.error("❌ Failed to forward message.");
+                    } finally {
+                      setForwardingUserId(null);
                       setShowForwardModal(false);
-                    }}
-                    className="w-full flex items-center gap-3 text-left px-4 py-2 rounded hover:bg-base-300"
-                  >
-                    <img
-                      src={user.profilePic || "/avatar.png"}
-                      alt={`${user.fullName || user.name} avatar`}
-                      className="w-8 h-8 rounded-full border"
-                    />
-                    <span>{user.fullName || user.name}</span>
-                  </button>
-
-                </li>
-              ))}
-
-            </ul>
-          </div>
+                    }
+                  }}
+                  className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl shadow-sm transition-all ${
+                    isLoading ? "bg-base-200 cursor-not-allowed" : "hover:bg-base-200"
+                  }`}
+                >
+                  {/* Avatar */}
+                  <img
+                    src={user.profilePic || "/avatar.png"}
+                    alt={`${user.fullName || user.name} avatar`}
+                    className="w-10 h-10 rounded-full border border-base-300"
+                  />
+                  <div className="flex-1 text-left flex items-center justify-between">
+                    <p className="text-sm font-medium text-gray-900 dark:text-base-content">
+                      {user.fullName || user.name}
+                    </p>
+                    {/* Spinner */}
+                    {isLoading && (
+                      <div className="ml-2">
+                        <svg
+                          className="animate-spin h-5 w-5 text-primary"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                          />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <div className="text-sm text-base-content/60 text-center py-8">
+          No users available to forward the message to.
         </div>
       )}
+    </motion.div>
+  </div>
+)}
+
 
     </>
   );

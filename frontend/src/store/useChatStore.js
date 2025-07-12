@@ -87,7 +87,6 @@ export const useChatStore = create((set, get) => ({
       return;
     }
 
-    console.log("✅ Subscribing to socket events with user ID:", myId);
 
     const normalizeId = (id) => (id?._id?.toString?.() || id?.toString?.());
 
@@ -155,7 +154,6 @@ export const useChatStore = create((set, get) => ({
       }
     });
 
-    // Optional: log all socket events for debugging
     socket.onAny((event, ...args) => {
       console.log(`📡 SOCKET EVENT: ${event}`, args);
     });
